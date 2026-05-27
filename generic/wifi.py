@@ -20,9 +20,8 @@ def initialize_wifi(ssid, password):
 
     # Check if connection is successful
     if wlan.status() != 3:
-        return False
+        return None
     else:
-        my_print('Connection successful!')
         network_info = wlan.ifconfig()
         my_print('IP address:', network_info[0])
-        return True
+        return wlan
