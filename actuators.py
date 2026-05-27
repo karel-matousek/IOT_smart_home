@@ -1,5 +1,6 @@
 import sys
 sys.path.append("/")
+from generic.lamp import Lamp
 from machine import Pin
 from time import ticks_ms, ticks_diff
 from generic import config
@@ -10,16 +11,12 @@ from generic.my_print import my_print
 from generic.buzzer import Buzzer
 from generic.heater import Heater
 
-# === Shared variables
-shared = {'mqtt_topic_update_flag': False}
-
 # === Objects
 wlan = None
 client = None
-led = Pin("LED", Pin.OUT)
+lamp = Lamp(pin="LED")
 buzzer = Buzzer(18, duty=30000, freq=2000, period_on_ms=150, period_off_ms=150)
-heater = Heater(2, shared=shared)
-lamp_state = False
+heater = Heater(2)
 
 # === Timing variables
 mqtt_period_ms = 50000
@@ -48,49 +45,37 @@ def mqtt_received_callback(topic, message):
             my_print('Unknown command for alarm')
 
     elif topic == MQTT_TOPIC_LAMP:
-        global lamp_state
         if message == 'ON':
             my_print('Turning LED ON')
-            lamp_state = True
+            lamp.state = True
         elif message == 'OFF':
             my_print('Turning LED OFF')
-            lamp_state = False
+            lamp.state = False
         else:
             my_print('Unknown command for lamp')
 
-    elif topic == MQTT_TOPIC_TEMPERATURE_SETPOINT:
-        try:
-            new_setpoint = float(message)
-            heater.setpoint_dC = new_setpoint
-            my_print(f'Updated temperature setpoint to {new_setpoint:.2f} °C')
-        except ValueError:
-            my_print('Invalid temperature setpoint received')
-
-    elif topic == MQTT_TOPIC_TEMPERATURE:
-        try:
-            new_temperature = float(message)
-            heater.current_temperature_dC = new_temperature
-            my_print(f'Updated current temperature to {new_temperature:.2f} °C')
-        except ValueError:
-            my_print('Invalid temperature value received')
+    elif topic == MQTT_TOPIC_HEATER:
+        if message == 'ON':
+            my_print('Turning heater ON')
+            heater.state = True
+        elif message == 'OFF':
+            my_print('Turning heater OFF')
+            heater.state = False
+        else:
+            my_print('Unknown command for heater')
 
     else:
         my_print('Unknown topic received')
 
-def update_lamp():
-    if lamp_state == True:
-        led.value(1)
-    elif lamp_state == False:
-        led.value(0)
-
 def print_info():
     my_print("=================================================================")
-    print(f"\tTemperature: {heater.current_temperature_dC:.2f} °C")
-    print(f"\tHeater: \tstate: {'ON' if heater.state else 'OFF'} \tsetpoint: {heater.setpoint_dC:.2f} °C \thysteresis: {heater.hysteresis_dC:.2f} °C")
+    print(f"\tHeater: \tstate: {'ON' if heater.state else 'OFF'}")
     print(f"\tLamp: \t\tstate: {'ON' if lamp_state else 'OFF'}")
     print(f"\tAlarm: \t\tstate: {'ON' if buzzer.state else 'OFF'}")
 
 try:
+    print("=== Actuators =============================================================")
+
     wlan = initialize_wifi(config.wifi_ssid, config.wifi_password)
     if not wlan:
         raise Exception('WiFi connection failed')
@@ -103,21 +88,15 @@ try:
 
     client.set_callback(mqtt_received_callback)
     mqtt.subscribe(client, MQTT_TOPIC_LAMP)
-    mqtt.subscribe(client, MQTT_TOPIC_TEMPERATURE)
     mqtt.subscribe(client, MQTT_TOPIC_ALARM)
-    mqtt.subscribe(client, MQTT_TOPIC_TEMPERATURE_SETPOINT)
+    mqtt.subscribe(client, MQTT_TOPIC_HEATER)
 
     while True:
         client.check_msg()
 
         buzzer.update()
-        update_lamp()
+        lamp.update()
         heater.update()
-
-        if (ticks_diff(ticks_ms(), mqtt_upload_prev_time) >= mqtt_period_ms) or shared['mqtt_topic_update_flag'] == True:
-            mqtt_upload_prev_time = ticks_ms()
-            shared['mqtt_topic_update_flag'] = False
-            client.publish(MQTT_TOPIC_HEATER, b'ON' if heater.state else b'OFF')
 
         if ticks_diff(ticks_ms(), terminal_print_prev_time) >= terminal_print_period_ms:
             terminal_print_prev_time = ticks_ms()
@@ -127,7 +106,8 @@ except Exception as e:
     my_print('Error:', e)
 
 finally:
-    led.value(0)
+    lamp.state = False
+    lamp.update()
 
     buzzer.state = False
     buzzer.update()
