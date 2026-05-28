@@ -1,6 +1,5 @@
 import sys
 sys.path.append("/")
-import aht20
 import machine
 import time
 from generic import config
@@ -8,6 +7,7 @@ from generic.wifi import initialize_wifi
 from generic.umqtt import implementation as mqtt
 from generic.umqtt.implementation import MQTT_TOPIC_LAMP, MQTT_TOPIC_TEMPERATURE, MQTT_TOPIC_ALARM, MQTT_TOPIC_TEMPERATURE_SETPOINT, MQTT_TOPIC_HEATER
 from generic.my_print import my_print
+import generic.aht20 as aht20
 
 DEVICE_ADDR = 56
 period = 3000
