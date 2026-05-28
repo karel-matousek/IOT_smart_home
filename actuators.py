@@ -16,12 +16,9 @@ wlan = None
 client = None
 lamp = Lamp(pin="LED")
 buzzer = Buzzer(18, duty=30000, freq=2000, period_on_ms=150, period_off_ms=150)
-heater = Heater(2)
+heater = Heater(28)
 
 # === Timing variables
-mqtt_period_ms = 50000
-mqtt_upload_prev_time = 0
-#
 terminal_print_period_ms = 1000
 terminal_print_prev_time = 0
 
@@ -70,7 +67,7 @@ def mqtt_received_callback(topic, message):
 def print_info():
     my_print("=================================================================")
     print(f"\tHeater: \tstate: {'ON' if heater.state else 'OFF'}")
-    print(f"\tLamp: \t\tstate: {'ON' if lamp_state else 'OFF'}")
+    print(f"\tLamp: \t\tstate: {'ON' if lamp.state else 'OFF'}")
     print(f"\tAlarm: \t\tstate: {'ON' if buzzer.state else 'OFF'}")
 
 try:
@@ -112,7 +109,8 @@ finally:
     buzzer.state = False
     buzzer.update()
 
-    heater.pin.value(0)
+    heater.state = False
+    heater.update()
 
     if client is not None:
         try:
