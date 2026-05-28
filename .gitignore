@@ -1,3 +1,5 @@
 .venv/
 .vscode/
 .code-workspace
+
+generic/config.py
