@@ -15,7 +15,7 @@ client = None
 heater = Heater()
 
 # === Timing variables
-mqtt_period_ms = 50000
+mqtt_period_ms = 30000
 mqtt_upload_prev_time = 0
 #
 terminal_print_period_ms = 1000
@@ -68,11 +68,13 @@ try:
         heater.change_setpoint()
         heater.calculate_state()
 
-        if heater.state_update_flag == True:
+        if heater.state_update_flag == True or ticks_diff(ticks_ms(), heater.state_last_upload_time) >= mqtt_period_ms:
             heater.state_update_flag = False
+            heater.state_last_upload_time = ticks_ms()
             client.publish(MQTT_TOPIC_HEATER, b'ON' if heater.state else b'OFF')
-        if heater.setpoint_update_flag == True:
+        if heater.setpoint_update_flag == True or ticks_diff(ticks_ms(), heater.setpoint_last_upload_time) >= mqtt_period_ms:
             heater.setpoint_update_flag = False
+            heater.setpoint_last_upload_time = ticks_ms()
             client.publish(MQTT_TOPIC_TEMPERATURE_SETPOINT, f"{heater.setpoint_dC:.2f}".encode('utf-8'))
 
         if ticks_diff(ticks_ms(), terminal_print_prev_time) >= terminal_print_period_ms:
